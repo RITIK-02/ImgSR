@@ -50,9 +50,14 @@ class ViTSR(nn.Module):
         # print(">>> ViTSR INIT scale =", scale)
 
         self.patch_embed = nn.Conv2d(
-            3, embed_dim, kernel_size=1, stride=1
+            3, embed_dim, kernel_size=4, stride=4
         )
-
+        
+        # Initialize positional embeddings for flexible input sizes
+        # With 4x patch embedding, max patches = (H/4)*(W/4) (up to 256x256)
+        max_patches = 256 * 256
+        self.pos_embed = nn.Parameter(torch.randn(1, max_patches, embed_dim))
+        
         encoder_layer = nn.TransformerEncoderLayer(
             d_model=embed_dim,
             nhead=num_heads,
@@ -62,15 +67,19 @@ class ViTSR(nn.Module):
             encoder_layer, num_layers
         )
 
+        # Upsampler: 4x patch embedding downsampling + 4x desired scale = 16x total
+        # Use two PixelShuffle layers (4x each) to achieve 16x upsampling
         self.upsampler = nn.Sequential(
             nn.Conv2d(
                 embed_dim,
-                embed_dim * scale * scale,
+                embed_dim * 16,  # 4x4 for first PixelShuffle
                 kernel_size=3,
                 stride=1,
                 padding=1
             ),
-            nn.PixelShuffle(scale),
+            nn.PixelShuffle(4),  # First 4x upsampling
+            nn.Conv2d(embed_dim, embed_dim * 16, kernel_size=3, stride=1, padding=1),
+            nn.PixelShuffle(4),  # Second 4x upsampling (16x total)
             nn.Conv2d(embed_dim, 3, kernel_size=3, stride=1, padding=1)
         )
 
@@ -88,8 +97,11 @@ class ViTSR(nn.Module):
 
         x = self.patch_embed(x)
         h, w = x.shape[-2:]
+        num_patches = h * w
 
-        x = x.flatten(2).transpose(1, 2)
+        x = x.flatten(2).transpose(1, 2)  # B, N, D
+        # Add positional embeddings
+        x = x + self.pos_embed[:, :num_patches, :]
         x = self.transformer(x)
         x = x.transpose(1, 2).reshape(B, self.embed_dim, h, w)
 
@@ -98,7 +110,7 @@ class ViTSR(nn.Module):
         x = self.upsampler(x)
 
         # print(">>> After upsample:", x.shape)
-
+        # Crop to target size using original (unpadded) dimensions
         return x[:, :, :H*scale, :W*scale]
 
     def print(self):

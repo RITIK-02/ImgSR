@@ -6,14 +6,17 @@ from tqdm import tqdm
 from torch.utils.data import DataLoader
 from datasets.sr_dataset import SuperResolutionDataset
 from models.edsr import EDSR   # or SwinIR / ViTSR
+from models.vit_sr import ViTSR
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 # -----------------------
 # Load model
 # -----------------------
-model = EDSR(scale=4)
-model.load_state_dict(torch.load("checkpoints/EDSR_best_47.pth", map_location=device))
+# model = EDSR(scale=4)
+# model.load_state_dict(torch.load("checkpoints/EDSR_best_47.pth", map_location=device))
+model = ViTSR(scale=4)
+model.load_state_dict(torch.load("checkpoints/VITSR_best_49.pth", map_location=device))
 model.to(device)
 model.eval()
 
@@ -34,7 +37,7 @@ test_loader = DataLoader(
 # -----------------------
 # Inference
 # -----------------------
-output_dir = "outputs"
+output_dir = f"outputs/{model.print()}"
 os.makedirs(output_dir, exist_ok=True)
 
 with torch.no_grad():

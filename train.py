@@ -9,8 +9,8 @@ from math import inf
 
 from utils.eval_metrics import calculate_joint_metric 
 
-from models.edsr import EDSR 
-from models.swinir import SwinIR 
+# from models.edsr import EDSR 
+# from models.swinir import SwinIR 
 from models.vit_sr import ViTSR 
 
 device = "cuda" if torch.cuda.is_available() else "cpu" 
@@ -22,10 +22,11 @@ train_dataset = SuperResolutionDataset("data/train/lr", "data/train/hr")
 
 train_loader = DataLoader( 
     train_dataset, 
-    batch_size=1, 
+    batch_size=4, 
     shuffle=True, 
     num_workers=4 
 )
+print("Data successfully loaded!")
 
 val_indices = random.sample(range(len(train_dataset)), 5) 
 val_subset = Subset(train_dataset, val_indices) 
@@ -49,6 +50,7 @@ EPOCHS = 50
 
 best_joint = -inf 
 
+print("Training Started!")
 # ----------------------- 
 # Training loop 
 # ----------------------- 
